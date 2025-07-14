@@ -418,7 +418,7 @@ const App = () => {
                 </div>
                 
                 <div className="border-l-4 border-green-500 pl-4">
-                  <h3 className="font-medium text-gray-900">GET /api/threats/{type}</h3>
+                  <h3 className="font-medium text-gray-900">GET /api/threats/&#123;type&#125;</h3>
                   <p className="text-sm text-gray-600">Get threats by type (deforestation, pollution, etc.)</p>
                 </div>
                 
