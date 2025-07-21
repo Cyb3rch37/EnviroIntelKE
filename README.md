@@ -17,6 +17,7 @@
 [![Markdown](https://img.shields.io/badge/Markdown-000000?logo=markdown&logoColor=white)](https://daringfireball.net/projects/markdown/)
 [![ESLint](https://img.shields.io/badge/ESLint-4B32C3?logo=eslint&logoColor=white)](https://eslint.org/)
 [![JSON](https://img.shields.io/badge/JSON-5C5C5C?logo=json&logoColor=white)](https://www.json.org/)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
 ---
 
