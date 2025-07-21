@@ -22,7 +22,7 @@
 
 ## Overview
 
-**EnviroIntelKE** is an open-source project by [Cyb3rch37](https://github.com/Cyb3rch37) designed to provide environmental intelligence tools and analytics, with a focus on leveraging modern web and data technologies.
+**EnviroIntelKE** is an advanced environmental threat intelligence platform by [Cyb3rch37](https://github.com/Cyb3rch37) tailored for developers seeking reliable, scalable monitoring solutions. It combines comprehensive backend API testing, structured quality assurance protocols, and a modular frontend architecture to streamline development and deployment.
 
 ## Features
 
@@ -39,6 +39,7 @@
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Cyb3rch37/EnviroIntelKE.git
+   cd EnviroIntelKE
    ```
 
 2. **Install dependencies:**  
@@ -72,7 +73,27 @@ Please refer to the repository's Wiki and Projects tab for additional documentat
 
 ## License
 
-This repository currently does not specify a license. Please check back or ask the author for details.
+MIT License
+
+Copyright (c) 2025 Cyb3rch37
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ## Author
 
