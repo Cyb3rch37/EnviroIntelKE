@@ -39,7 +39,7 @@ OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
 # Serve React static files (for production deployment)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
