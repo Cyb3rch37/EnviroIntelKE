@@ -1,0 +1,49 @@
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+
+# Environment files
+.env.local
+.env.development
+.env.test
+
+# Build files
+frontend/build/
+backend/static/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+coverage/
+.coverage
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.temp
