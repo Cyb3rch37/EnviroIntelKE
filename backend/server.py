@@ -10,6 +10,12 @@ import uuid
 from datetime import datetime, timedelta
 import random
 from pathlib import Path
+import httpx
+from dotenv import load_dotenv
+import asyncio
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(title="EnviroIntel KE API")
 
@@ -26,6 +32,9 @@ app.add_middleware(
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017/')
 client = MongoClient(mongo_url)
 db = client.envirointel_ke
+
+# API Keys
+OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
 
 # Serve React static files (for production deployment)
 static_dir = Path(__file__).parent / "static"
@@ -70,6 +79,259 @@ class PredictiveInsight(BaseModel):
     timeframe: str
     affected_areas: List[str]
     timestamp: datetime
+
+class WeatherData(BaseModel):
+    location: str
+    temperature: float
+    humidity: float
+    pressure: float
+    wind_speed: float
+    weather_condition: str
+    visibility: float
+    timestamp: datetime
+
+class AirQualityData(BaseModel):
+    location: str
+    pm25: Optional[float]
+    pm10: Optional[float]
+    no2: Optional[float]
+    so2: Optional[float]
+    aqi: Optional[int]
+    timestamp: datetime
+
+# Kenya locations for environmental monitoring
+KENYA_LOCATIONS = [
+    {"name": "Nairobi", "lat": -1.2921, "lng": 36.8219},
+    {"name": "Mombasa", "lat": -4.0435, "lng": 39.6682},
+    {"name": "Kisumu", "lat": -0.0917, "lng": 34.7680},
+    {"name": "Nakuru", "lat": -0.3031, "lng": 36.0800},
+    {"name": "Eldoret", "lat": 0.5143, "lng": 35.2697},
+    {"name": "Thika", "lat": -1.0332, "lng": 37.0689},
+    {"name": "Malindi", "lat": -3.2175, "lng": 40.1169},
+    {"name": "Nyeri", "lat": -0.4167, "lng": 36.9500}
+]
+
+# Real weather data integration
+async def get_real_weather_data():
+    """Fetch real weather data from OpenWeatherMap for Kenya locations"""
+    if not OPENWEATHER_API_KEY:
+        return []
+    
+    weather_data = []
+    async with httpx.AsyncClient() as http_client:
+        for location in KENYA_LOCATIONS:
+            try:
+                response = await http_client.get(
+                    f"https://api.openweathermap.org/data/2.5/weather",
+                    params={
+                        "lat": location["lat"],
+                        "lon": location["lng"],
+                        "appid": OPENWEATHER_API_KEY,
+                        "units": "metric"
+                    },
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    weather_data.append({
+                        "location": location["name"],
+                        "temperature": data["main"]["temp"],
+                        "humidity": data["main"]["humidity"],
+                        "pressure": data["main"]["pressure"],
+                        "wind_speed": data["wind"].get("speed", 0),
+                        "weather_condition": data["weather"][0]["main"],
+                        "visibility": data.get("visibility", 10000) / 1000,  # Convert to km
+                        "timestamp": datetime.now()
+                    })
+                    
+            except Exception as e:
+                print(f"Error fetching weather data for {location['name']}: {e}")
+                continue
+                
+    return weather_data
+
+# Real air quality data integration
+async def get_real_air_quality_data():
+    """Fetch real air quality data from OpenAQ for Kenya"""
+    air_quality_data = []
+    
+    async with httpx.AsyncClient() as http_client:
+        try:
+            # Fetch latest air quality measurements for Kenya
+            response = await http_client.get(
+                "https://api.openaq.org/v2/latest",
+                params={
+                    "country": "KE",  # Kenya ISO code
+                    "parameter": "pm25,pm10,no2,so2",
+                    "limit": 100
+                },
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                for result in data.get("results", []):
+                    location_name = result.get("location", "Unknown")
+                    measurements = {}
+                    aqi_value = None
+                    
+                    # Process measurements
+                    for measurement in result.get("measurements", []):
+                        param = measurement.get("parameter")
+                        value = measurement.get("value")
+                        
+                        if param == "pm25":
+                            measurements["pm25"] = value
+                            # Simple AQI calculation for PM2.5
+                            if value <= 12:
+                                aqi_value = min(50, int((value/12) * 50))
+                            elif value <= 35.4:
+                                aqi_value = int(50 + ((value-12)/(35.4-12)) * 50)
+                            elif value <= 55.4:
+                                aqi_value = int(100 + ((value-35.4)/(55.4-35.4)) * 50)
+                            else:
+                                aqi_value = min(300, int(150 + ((value-55.4)/100) * 150))
+                        elif param == "pm10":
+                            measurements["pm10"] = value
+                        elif param == "no2":
+                            measurements["no2"] = value
+                        elif param == "so2":
+                            measurements["so2"] = value
+                    
+                    air_quality_data.append({
+                        "location": location_name,
+                        "pm25": measurements.get("pm25"),
+                        "pm10": measurements.get("pm10"),
+                        "no2": measurements.get("no2"),
+                        "so2": measurements.get("so2"),
+                        "aqi": aqi_value,
+                        "timestamp": datetime.now()
+                    })
+                    
+        except Exception as e:
+            print(f"Error fetching air quality data: {e}")
+            
+    return air_quality_data
+
+# Generate climate anomaly threats from real weather data
+async def generate_climate_threats_from_real_data():
+    """Generate climate threat alerts based on real weather data"""
+    weather_data = await get_real_weather_data()
+    climate_threats = []
+    
+    for weather in weather_data:
+        threats = []
+        
+        # Temperature anomalies
+        if weather["temperature"] > 35:  # Very hot
+            threats.append({
+                "type": "climate_anomaly",
+                "title": f"Extreme Heat Warning - {weather['location']}",
+                "description": f"Temperature reached {weather['temperature']:.1f}°C, exceeding safe limits",
+                "severity": "high" if weather["temperature"] > 40 else "medium"
+            })
+        elif weather["temperature"] < 10:  # Unusually cold for Kenya
+            threats.append({
+                "type": "climate_anomaly", 
+                "title": f"Unusual Cold Conditions - {weather['location']}",
+                "description": f"Temperature dropped to {weather['temperature']:.1f}°C, below normal range",
+                "severity": "medium"
+            })
+            
+        # Low visibility (potential air pollution or weather issues)
+        if weather["visibility"] < 2:
+            threats.append({
+                "type": "pollution",
+                "title": f"Poor Visibility Alert - {weather['location']}",
+                "description": f"Visibility reduced to {weather['visibility']:.1f}km, possible air quality issues",
+                "severity": "medium"
+            })
+            
+        # High wind speeds
+        if weather["wind_speed"] > 15:  # Strong winds
+            threats.append({
+                "type": "climate_anomaly",
+                "title": f"Strong Wind Alert - {weather['location']}",
+                "description": f"Wind speeds reaching {weather['wind_speed']:.1f} m/s, may affect outdoor activities",
+                "severity": "low"
+            })
+        
+        for threat in threats:
+            climate_threats.append(ThreatAlert(
+                id=str(uuid.uuid4()),
+                type=threat["type"],
+                title=threat["title"],
+                description=threat["description"],
+                location={"lat": next(loc["lat"] for loc in KENYA_LOCATIONS if loc["name"] == weather["location"]),
+                         "lng": next(loc["lng"] for loc in KENYA_LOCATIONS if loc["name"] == weather["location"]),
+                         "name": weather["location"]},
+                severity=threat["severity"],
+                confidence=0.85,
+                timestamp=datetime.now(),
+                source="Weather Station",
+                status="active"
+            ))
+            
+    return climate_threats
+
+# Generate pollution threats from real air quality data
+async def generate_pollution_threats_from_real_data():
+    """Generate pollution threat alerts based on real air quality data"""
+    air_quality_data = await get_real_air_quality_data()
+    pollution_threats = []
+    
+    for aq_data in air_quality_data:
+        threats = []
+        
+        # PM2.5 alerts
+        if aq_data["pm25"] and aq_data["pm25"] > 35:  # WHO guideline exceeded
+            severity = "critical" if aq_data["pm25"] > 75 else "high"
+            threats.append({
+                "title": f"High PM2.5 Levels - {aq_data['location']}",
+                "description": f"PM2.5 concentration at {aq_data['pm25']:.1f} µg/m³, exceeding WHO guidelines (15 µg/m³)",
+                "severity": severity
+            })
+            
+        # PM10 alerts  
+        if aq_data["pm10"] and aq_data["pm10"] > 50:  # WHO guideline exceeded
+            severity = "high" if aq_data["pm10"] > 100 else "medium"
+            threats.append({
+                "title": f"High PM10 Levels - {aq_data['location']}",
+                "description": f"PM10 concentration at {aq_data['pm10']:.1f} µg/m³, exceeding WHO guidelines (45 µg/m³)",
+                "severity": severity
+            })
+            
+        # NO2 alerts
+        if aq_data["no2"] and aq_data["no2"] > 40:  # WHO guideline exceeded
+            threats.append({
+                "title": f"High NO2 Levels - {aq_data['location']}",
+                "description": f"NO2 concentration at {aq_data['no2']:.1f} µg/m³, indicating traffic/industrial pollution",
+                "severity": "medium"
+            })
+        
+        for threat in threats:
+            # Find location coordinates
+            location_coords = {"lat": -1.2921, "lng": 36.8219, "name": aq_data["location"]}  # Default to Nairobi
+            for loc in KENYA_LOCATIONS:
+                if loc["name"].lower() in aq_data["location"].lower():
+                    location_coords = {"lat": loc["lat"], "lng": loc["lng"], "name": aq_data["location"]}
+                    break
+                    
+            pollution_threats.append(ThreatAlert(
+                id=str(uuid.uuid4()),
+                type="pollution",
+                title=threat["title"],
+                description=threat["description"],
+                location=location_coords,
+                severity=threat["severity"],
+                confidence=0.92,
+                timestamp=datetime.now(),
+                source="Air Quality Monitor",
+                status="active"
+            ))
+            
+    return pollution_threats
 
 # Mock data generation
 def generate_mock_threats():
