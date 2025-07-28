@@ -241,17 +241,22 @@ async def get_recent_alerts():
 @app.get("/{catchall:path}")
 async def serve_react_app(catchall: str):
     # Don't serve React app for API routes
-    if catchall.startswith("api/") or catchall.startswith("docs") or catchall.startswith("redoc"):
+    if catchall.startswith("api/") or catchall.startswith("docs") or catchall.startswith("redoc") or catchall.startswith("static/"):
         raise HTTPException(status_code=404, detail="Not found")
     
     # Check if static directory exists (production mode)
     if static_dir.exists():
         index_file = static_dir / "index.html"
         if index_file.exists():
+            print(f"✅ Serving React app: {index_file}")
             return FileResponse(index_file)
+        else:
+            print(f"❌ index.html not found in: {static_dir}")
+    else:
+        print(f"❌ Static directory not found: {static_dir}")
     
     # In development mode, API-only
-    raise HTTPException(status_code=404, detail="Not found")
+    raise HTTPException(status_code=404, detail="Static files not available")
 
 if __name__ == "__main__":
     import uvicorn
