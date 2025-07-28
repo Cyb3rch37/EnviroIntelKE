@@ -19,6 +19,8 @@ services:
       echo "Build completed successfully!"
     startCommand: cd backend && python3 -m uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: REACT_APP_BACKEND_URL
+        value: https://envirointelke.onrender.com
       - key: MONGO_URL
         value: "MONGO_URL"
       - key: NODE_ENV
