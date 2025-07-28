@@ -242,7 +242,36 @@ async def update_threat_status(threat_id: str, status: str):
     # In a real implementation, this would update the database
     return {"message": f"Threat {threat_id} status updated to {status}"}
 
-@app.get("/api/alerts/recent")
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon"""
+    favicon_path = static_dir / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(favicon_path)
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/manifest.json")
+async def manifest():
+    """Serve manifest.json"""
+    manifest_path = static_dir / "manifest.json"
+    if manifest_path.exists():
+        return FileResponse(manifest_path)
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.get("/{filename}")
+async def serve_root_files(filename: str):
+    """Serve root-level files like fonts, images, etc."""
+    # Only serve specific file types to avoid conflicts
+    allowed_extensions = {'.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ttf', '.woff', '.woff2', '.json', '.xml', '.txt'}
+    file_extension = Path(filename).suffix.lower()
+    
+    if file_extension in allowed_extensions:
+        file_path = static_dir / filename
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+    
+    # If not a root file, continue to React app serving
+    raise HTTPException(status_code=404, detail="File not found")
 async def get_recent_alerts():
     """Get recent alerts for real-time feed"""
     threats = generate_mock_threats()
