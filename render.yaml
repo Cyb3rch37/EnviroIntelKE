@@ -2,6 +2,7 @@ services:
   - type: web
     name: envirointel-ke
     env: python
+    runtime: python3
     region: oregon
     plan: free
     buildCommand: |
