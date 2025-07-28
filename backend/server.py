@@ -406,28 +406,6 @@ def generate_mock_insights():
             timeframe="2 months",
             affected_areas=["Kakamega", "Nandi", "Vihiga"],
             timestamp=datetime.now()
-        ),
-        PredictiveInsight(
-            id=str(uuid.uuid4()),
-            type="pollution_prediction",
-            title="Air Quality Deterioration - Nairobi",
-            description="Traffic and industrial patterns suggest 45% increase in PM2.5 levels during upcoming industrial season",
-            risk_level="medium",
-            probability=0.72,
-            timeframe="1 month",
-            affected_areas=["Nairobi", "Kiambu", "Machakos"],
-            timestamp=datetime.now()
-        ),
-        PredictiveInsight(
-            id=str(uuid.uuid4()),
-            type="flood_prediction",
-            title="Flood Risk - Coastal Region",
-            description="Monsoon patterns and soil moisture data indicate 85% probability of flooding in coastal areas",
-            risk_level="critical",
-            probability=0.85,
-            timeframe="1 month",
-            affected_areas=["Mombasa", "Kilifi", "Kwale"],
-            timestamp=datetime.now()
         )
     ]
     return insights
