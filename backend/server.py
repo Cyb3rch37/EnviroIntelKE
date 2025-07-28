@@ -555,11 +555,6 @@ async def serve_root_files(filename: str):
     
     # If not a root file, continue to React app serving
     raise HTTPException(status_code=404, detail="File not found")
-async def get_recent_alerts():
-    """Get recent alerts for real-time feed"""
-    threats = generate_mock_threats()
-    recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
-    return {"alerts": [threat.dict() for threat in recent_threats]}
 
 # Serve React app for all non-API routes (for production deployment)
 @app.get("/{catchall:path}")
