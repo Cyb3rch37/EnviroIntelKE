@@ -39,22 +39,7 @@ OPENWEATHER_API_KEY = os.environ.get('OPENWEATHER_API_KEY')
 # Serve React static files (for production deployment)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
-    # Check if React static subdirectory exists (CSS/JS files)
-    react_static_dir = static_dir / "static"
-    if react_static_dir.exists():
-        app.mount("/static", StaticFiles(directory=str(react_static_dir)), name="react-static")
-        print(f"✅ React static files mounted from: {react_static_dir}")
-    else:
-        # Fallback: mount the entire static directory
-        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-        print(f"✅ Static files mounted from: {static_dir}")
-    
-    # Mount additional assets at root level (favicon, manifest, etc.)
-    for file in static_dir.glob("*"):
-        if file.is_file():
-            print(f"📄 Found root asset: {file.name}")
-else:
-    print(f"⚠️ Static directory not found: {static_dir}")
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
@@ -413,6 +398,9 @@ def generate_mock_insights():
 # API Routes
 @app.get("/")
 async def root():
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return {"message": "EnviroIntel KE API - Environmental Cyber Intelligence Platform"}
 
 @app.get("/health")
@@ -525,61 +513,21 @@ async def get_recent_alerts():
     recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
     return {"alerts": [threat.dict() for threat in recent_threats]}
 
-@app.get("/favicon.ico")
-async def favicon():
-    """Serve favicon"""
-    favicon_path = static_dir / "favicon.ico"
-    if favicon_path.exists():
-        return FileResponse(favicon_path)
-    raise HTTPException(status_code=404, detail="Favicon not found")
-
-@app.get("/manifest.json")
-async def manifest():
-    """Serve manifest.json"""
-    manifest_path = static_dir / "manifest.json"
-    if manifest_path.exists():
-        return FileResponse(manifest_path)
-    raise HTTPException(status_code=404, detail="Manifest not found")
-
-@app.get("/{filename}")
-async def serve_root_files(filename: str):
-    """Serve root-level files like fonts, images, etc."""
-    # Only serve specific file types to avoid conflicts
-    allowed_extensions = {'.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ttf', '.woff', '.woff2', '.json', '.xml', '.txt'}
-    file_extension = Path(filename).suffix.lower()
-    
-    if file_extension in allowed_extensions:
-        file_path = static_dir / filename
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-    
-    # If not a root file, continue to React app serving
-    raise HTTPException(status_code=404, detail="File not found")
-
 # Serve React app for all non-API routes (for production deployment)
 @app.get("/{catchall:path}")
 async def serve_react_app(catchall: str):
-    # Don't serve React app for API routes, static assets, or specific files
-    if (catchall.startswith("api/") or 
-        catchall.startswith("docs") or 
-        catchall.startswith("redoc") or 
-        catchall.startswith("static/") or
-        "." in catchall.split("/")[-1]):  # Skip files with extensions
+    # Don't serve React app for API routes
+    if catchall.startswith("api/") or catchall.startswith("docs") or catchall.startswith("redoc"):
         raise HTTPException(status_code=404, detail="Not found")
     
     # Check if static directory exists (production mode)
     if static_dir.exists():
         index_file = static_dir / "index.html"
         if index_file.exists():
-            print(f"✅ Serving React app for route: {catchall}")
             return FileResponse(index_file)
-        else:
-            print(f"❌ index.html not found in: {static_dir}")
-    else:
-        print(f"❌ Static directory not found: {static_dir}")
     
     # In development mode, API-only
-    raise HTTPException(status_code=404, detail="Static files not available")
+    raise HTTPException(status_code=404, detail="Not found")
 
 if __name__ == "__main__":
     import uvicorn
