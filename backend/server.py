@@ -30,8 +30,12 @@ db = client.envirointel_ke
 # Serve React static files (for production deployment)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists() and list(static_dir.glob("*")):
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    # Mount the entire static directory to serve CSS, JS, and other assets
+    app.mount("/static", StaticFiles(directory=str(static_dir / "static")), name="react-static")
+    # Also mount root static files (like favicon, manifest, etc.)
+    app.mount("/assets", StaticFiles(directory=str(static_dir)), name="react-assets")
     print(f"✅ Static files mounted from: {static_dir}")
+    print(f"✅ React assets mounted from: {static_dir}/static")
 else:
     print(f"⚠️ Static directory not found or empty: {static_dir}")
 
