@@ -166,6 +166,9 @@ def generate_mock_insights():
 # API Routes
 @app.get("/")
 async def root():
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return {"message": "EnviroIntel KE API - Environmental Cyber Intelligence Platform"}
 
 @app.get("/health")
