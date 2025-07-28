@@ -29,15 +29,23 @@ db = client.envirointel_ke
 
 # Serve React static files (for production deployment)
 static_dir = Path(__file__).parent / "static"
-if static_dir.exists() and list(static_dir.glob("*")):
-    # Mount the entire static directory to serve CSS, JS, and other assets
-    app.mount("/static", StaticFiles(directory=str(static_dir / "static")), name="react-static")
-    # Also mount root static files (like favicon, manifest, etc.)
-    app.mount("/assets", StaticFiles(directory=str(static_dir)), name="react-assets")
-    print(f"✅ Static files mounted from: {static_dir}")
-    print(f"✅ React assets mounted from: {static_dir}/static")
+if static_dir.exists():
+    # Check if React static subdirectory exists (CSS/JS files)
+    react_static_dir = static_dir / "static"
+    if react_static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(react_static_dir)), name="react-static")
+        print(f"✅ React static files mounted from: {react_static_dir}")
+    else:
+        # Fallback: mount the entire static directory
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        print(f"✅ Static files mounted from: {static_dir}")
+    
+    # Mount additional assets at root level (favicon, manifest, etc.)
+    for file in static_dir.glob("*"):
+        if file.is_file():
+            print(f"📄 Found root asset: {file.name}")
 else:
-    print(f"⚠️ Static directory not found or empty: {static_dir}")
+    print(f"⚠️ Static directory not found: {static_dir}")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
