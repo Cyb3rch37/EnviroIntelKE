@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pymongo import MongoClient
 from typing import List, Optional
@@ -7,6 +9,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 import random
+from pathlib import Path
 
 app = FastAPI(title="EnviroIntel KE API")
 
@@ -23,6 +26,11 @@ app.add_middleware(
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017/')
 client = MongoClient(mongo_url)
 db = client.envirointel_ke
+
+# Serve React static files (for production deployment)
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
@@ -160,6 +168,10 @@ def generate_mock_insights():
 async def root():
     return {"message": "EnviroIntel KE API - Environmental Cyber Intelligence Platform"}
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
 @app.get("/api/threats")
 async def get_threats():
     """Get all environmental threats"""
@@ -222,6 +234,23 @@ async def get_recent_alerts():
     recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
     return {"alerts": [threat.dict() for threat in recent_threats]}
 
+# Serve React app for all non-API routes (for production deployment)
+@app.get("/{catchall:path}")
+async def serve_react_app(catchall: str):
+    # Don't serve React app for API routes
+    if catchall.startswith("api/") or catchall.startswith("docs") or catchall.startswith("redoc"):
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Check if static directory exists (production mode)
+    if static_dir.exists():
+        index_file = static_dir / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+    
+    # In development mode, API-only
+    raise HTTPException(status_code=404, detail="Not found")
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)
