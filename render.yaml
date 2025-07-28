@@ -6,9 +6,9 @@ services:
     plan: free
     buildCommand: |
       echo "Installing frontend dependencies..."
-      cd frontend && yarn install --frozen-lockfile
+      cd frontend && npm install
       echo "Building React frontend..."
-      yarn build
+      npm run build
       echo "Creating static directory for backend..."
       mkdir -p ../backend/static
       echo "Copying React build to backend static directory..."
