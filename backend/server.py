@@ -288,15 +288,19 @@ async def get_recent_alerts():
 # Serve React app for all non-API routes (for production deployment)
 @app.get("/{catchall:path}")
 async def serve_react_app(catchall: str):
-    # Don't serve React app for API routes
-    if catchall.startswith("api/") or catchall.startswith("docs") or catchall.startswith("redoc") or catchall.startswith("static/"):
+    # Don't serve React app for API routes, static assets, or specific files
+    if (catchall.startswith("api/") or 
+        catchall.startswith("docs") or 
+        catchall.startswith("redoc") or 
+        catchall.startswith("static/") or
+        "." in catchall.split("/")[-1]):  # Skip files with extensions
         raise HTTPException(status_code=404, detail="Not found")
     
     # Check if static directory exists (production mode)
     if static_dir.exists():
         index_file = static_dir / "index.html"
         if index_file.exists():
-            print(f"✅ Serving React app: {index_file}")
+            print(f"✅ Serving React app for route: {catchall}")
             return FileResponse(index_file)
         else:
             print(f"❌ index.html not found in: {static_dir}")
