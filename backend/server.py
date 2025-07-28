@@ -419,16 +419,57 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+@app.get("/api/weather")
+async def get_weather_data():
+    """Get real-time weather data for Kenya"""
+    try:
+        weather_data = await get_real_weather_data()
+        return {"weather": weather_data, "source": "OpenWeatherMap", "count": len(weather_data)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching weather data: {str(e)}")
+
+@app.get("/api/air-quality")
+async def get_air_quality_data():
+    """Get real-time air quality data for Kenya"""
+    try:
+        air_quality_data = await get_real_air_quality_data()
+        return {"air_quality": air_quality_data, "source": "OpenAQ", "count": len(air_quality_data)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching air quality data: {str(e)}")
+
 @app.get("/api/threats")
 async def get_threats():
-    """Get all environmental threats"""
-    threats = generate_mock_threats()
-    return {"threats": [threat.dict() for threat in threats]}
+    """Get all environmental threats (combination of real and mock data)"""
+    try:
+        # Get real climate threats from weather data
+        climate_threats = await generate_climate_threats_from_real_data()
+        
+        # Get real pollution threats from air quality data  
+        pollution_threats = await generate_pollution_threats_from_real_data()
+        
+        # Get mock threats for deforestation and illegal dumping
+        mock_threats = generate_mock_threats()
+        
+        # Combine all threats
+        all_threats = climate_threats + pollution_threats + mock_threats
+        
+        return {
+            "threats": [threat.dict() for threat in all_threats],
+            "total": len(all_threats),
+            "real_data_threats": len(climate_threats) + len(pollution_threats),
+            "mock_threats": len(mock_threats)
+        }
+    except Exception as e:
+        # Fallback to mock data if APIs fail
+        print(f"Error generating real threats, falling back to mock data: {e}")
+        mock_threats = generate_mock_threats()
+        return {"threats": [threat.dict() for threat in mock_threats]}
 
 @app.get("/api/threats/{threat_type}")
 async def get_threats_by_type(threat_type: str):
     """Get threats by type"""
-    threats = generate_mock_threats()
+    threats_data = await get_threats()
+    threats = [ThreatAlert(**threat) for threat in threats_data["threats"]]
     filtered_threats = [threat for threat in threats if threat.type == threat_type]
     return {"threats": [threat.dict() for threat in filtered_threats]}
 
@@ -441,7 +482,8 @@ async def get_predictive_insights():
 @app.get("/api/stats")
 async def get_dashboard_stats():
     """Get dashboard statistics"""
-    threats = generate_mock_threats()
+    threats_data = await get_threats()
+    threats = [ThreatAlert(**threat) for threat in threats_data["threats"]]
     
     # Calculate statistics
     total_threats = len(threats)
@@ -465,6 +507,7 @@ async def get_dashboard_stats():
         "resolved_threats": len([t for t in threats if t.status == "resolved"]),
         "threat_distribution": threat_distribution,
         "severity_distribution": severity_distribution,
+        "real_data_sources": ["OpenWeatherMap", "OpenAQ"],
         "last_updated": datetime.now().isoformat()
     }
 
@@ -477,7 +520,8 @@ async def update_threat_status(threat_id: str, status: str):
 @app.get("/api/alerts/recent")
 async def get_recent_alerts():
     """Get recent alerts for real-time feed"""
-    threats = generate_mock_threats()
+    threats_data = await get_threats()
+    threats = [ThreatAlert(**threat) for threat in threats_data["threats"]]
     recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
     return {"alerts": [threat.dict() for threat in recent_threats]}
 
