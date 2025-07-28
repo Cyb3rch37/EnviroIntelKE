@@ -242,6 +242,13 @@ async def update_threat_status(threat_id: str, status: str):
     # In a real implementation, this would update the database
     return {"message": f"Threat {threat_id} status updated to {status}"}
 
+@app.get("/api/alerts/recent")
+async def get_recent_alerts():
+    """Get recent alerts for real-time feed"""
+    threats = generate_mock_threats()
+    recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
+    return {"alerts": [threat.dict() for threat in recent_threats]}
+
 @app.get("/favicon.ico")
 async def favicon():
     """Serve favicon"""
