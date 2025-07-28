@@ -333,9 +333,9 @@ async def generate_pollution_threats_from_real_data():
             
     return pollution_threats
 
-# Mock data generation
+# Mock data generation (fallback)
 def generate_mock_threats():
-    """Generate mock environmental threats across Kenya"""
+    """Generate mock environmental threats across Kenya (fallback when APIs are unavailable)"""
     kenya_locations = [
         {"lat": -1.2921, "lng": 36.8219, "name": "Nairobi"},
         {"lat": -4.0435, "lng": 39.6682, "name": "Mombasa"},
@@ -354,22 +354,14 @@ def generate_mock_threats():
             "titles": ["Illegal Logging Detected", "Forest Canopy Loss", "Charcoal Production Site"],
             "descriptions": ["Satellite imagery shows significant tree loss", "Unusual forest clearing activity detected", "Illegal charcoal production identified"]
         },
-        "pollution": {
-            "titles": ["Air Quality Alert", "Water Contamination", "Industrial Pollution"],
-            "descriptions": ["PM2.5 levels exceed safe limits", "Chemical contamination detected", "Industrial waste discharge identified"]
-        },
         "illegal_dumping": {
             "titles": ["Illegal Waste Dump", "Plastic Pollution", "Chemical Waste Site"],
             "descriptions": ["Large waste accumulation detected", "Plastic debris concentration", "Hazardous waste disposal identified"]
-        },
-        "climate_anomaly": {
-            "titles": ["Drought Risk", "Flood Warning", "Temperature Anomaly"],
-            "descriptions": ["Severe drought conditions developing", "Flash flood risk elevated", "Unusual temperature patterns detected"]
         }
     }
     
     threats = []
-    for i in range(25):
+    for i in range(12):  # Reduced to make room for real data
         threat_type = random.choice(list(threat_types.keys()))
         location = random.choice(kenya_locations)
         threat_data = threat_types[threat_type]
@@ -380,10 +372,10 @@ def generate_mock_threats():
             title=random.choice(threat_data["titles"]),
             description=random.choice(threat_data["descriptions"]),
             location=location,
-            severity=random.choice(["low", "medium", "high", "critical"]),
-            confidence=round(random.uniform(0.6, 0.95), 2),
+            severity=random.choice(["low", "medium", "high"]),
+            confidence=round(random.uniform(0.6, 0.85), 2),
             timestamp=datetime.now() - timedelta(hours=random.randint(0, 48)),
-            source=random.choice(["Satellite", "Social Media", "Citizen Report", "Sensor Network"]),
+            source=random.choice(["Satellite", "Citizen Report"]),
             status=random.choice(["active", "investigating", "resolved"])
         )
         threats.append(threat)
