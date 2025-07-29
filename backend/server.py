@@ -28,9 +28,24 @@ client = MongoClient(mongo_url)
 db = client.envirointel_ke
 
 # Serve React static files (for production deployment)
-# The CWD is 'backend', so the path is relative to it
-static_dir = Path("static")
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    # Check if React static subdirectory exists (CSS/JS files)
+    react_static_dir = static_dir / "static"
+    if react_static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(react_static_dir)), name="react-static")
+        print(f"✅ React static files mounted from: {react_static_dir}")
+    else:
+        # Fallback: mount the entire static directory
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        print(f"✅ Static files mounted from: {static_dir}")
+    
+    # Mount additional assets at root level (favicon, manifest, etc.)
+    for file in static_dir.glob("*"):
+        if file.is_file():
+            print(f"📄 Found root asset: {file.name}")
+else:
+    print(f"⚠️ Static directory not found: {static_dir}")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
@@ -163,16 +178,9 @@ def generate_mock_insights():
     ]
     return insights
 
-# Generate mock data once at startup
-MOCK_THREATS = generate_mock_threats()
-MOCK_INSIGHTS = generate_mock_insights()
-
 # API Routes
 @app.get("/")
 async def root():
-    index_file = static_dir / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
     return {"message": "EnviroIntel KE API - Environmental Cyber Intelligence Platform"}
 
 @app.get("/health")
@@ -182,42 +190,47 @@ async def health_check():
 @app.get("/api/threats")
 async def get_threats():
     """Get all environmental threats"""
-    return {"threats": [threat.dict() for threat in MOCK_THREATS]}
+    threats = generate_mock_threats()
+    return {"threats": [threat.dict() for threat in threats]}
 
 @app.get("/api/threats/{threat_type}")
 async def get_threats_by_type(threat_type: str):
     """Get threats by type"""
-    filtered_threats = [threat for threat in MOCK_THREATS if threat.type == threat_type]
+    threats = generate_mock_threats()
+    filtered_threats = [threat for threat in threats if threat.type == threat_type]
     return {"threats": [threat.dict() for threat in filtered_threats]}
 
 @app.get("/api/insights")
 async def get_predictive_insights():
     """Get predictive insights"""
-    return {"insights": [insight.dict() for insight in MOCK_INSIGHTS]}
+    insights = generate_mock_insights()
+    return {"insights": [insight.dict() for insight in insights]}
 
 @app.get("/api/stats")
 async def get_dashboard_stats():
     """Get dashboard statistics"""
-    # Calculate statistics from the single source of mock data
-    total_threats = len(MOCK_THREATS)
-    active_threats = len([t for t in MOCK_THREATS if t.status == "active"])
-    critical_threats = len([t for t in MOCK_THREATS if t.severity == "critical"])
+    threats = generate_mock_threats()
+    
+    # Calculate statistics
+    total_threats = len(threats)
+    active_threats = len([t for t in threats if t.status == "active"])
+    critical_threats = len([t for t in threats if t.severity == "critical"])
     
     # Threat distribution
     threat_distribution = {}
-    for threat in MOCK_THREATS:
+    for threat in threats:
         threat_distribution[threat.type] = threat_distribution.get(threat.type, 0) + 1
     
     # Severity distribution
     severity_distribution = {}
-    for threat in MOCK_THREATS:
+    for threat in threats:
         severity_distribution[threat.severity] = severity_distribution.get(threat.severity, 0) + 1
     
     return {
         "total_threats": total_threats,
         "active_threats": active_threats,
         "critical_threats": critical_threats,
-        "resolved_threats": len([t for t in MOCK_THREATS if t.status == "resolved"]),
+        "resolved_threats": len([t for t in threats if t.status == "resolved"]),
         "threat_distribution": threat_distribution,
         "severity_distribution": severity_distribution,
         "last_updated": datetime.now().isoformat()
@@ -232,24 +245,65 @@ async def update_threat_status(threat_id: str, status: str):
 @app.get("/api/alerts/recent")
 async def get_recent_alerts():
     """Get recent alerts for real-time feed"""
-    recent_threats = sorted(MOCK_THREATS, key=lambda x: x.timestamp, reverse=True)[:10]
+    threats = generate_mock_threats()
+    recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
     return {"alerts": [threat.dict() for threat in recent_threats]}
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon"""
+    favicon_path = static_dir / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(favicon_path)
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/manifest.json")
+async def manifest():
+    """Serve manifest.json"""
+    manifest_path = static_dir / "manifest.json"
+    if manifest_path.exists():
+        return FileResponse(manifest_path)
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.get("/{filename}")
+async def serve_root_files(filename: str):
+    """Serve root-level files like fonts, images, etc."""
+    # Only serve specific file types to avoid conflicts
+    allowed_extensions = {'.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ttf', '.woff', '.woff2', '.json', '.xml', '.txt'}
+    file_extension = Path(filename).suffix.lower()
+    
+    if file_extension in allowed_extensions:
+        file_path = static_dir / filename
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+    
+    # If not a root file, continue to React app serving
+    raise HTTPException(status_code=404, detail="File not found")
 
 # Serve React app for all non-API routes (for production deployment)
 @app.get("/{catchall:path}")
 async def serve_react_app(catchall: str):
-    # Don't serve React app for API routes
-    if catchall.startswith("api/") or catchall.startswith("docs") or catchall.startswith("redoc"):
+    # Don't serve React app for API routes, static assets, or specific files
+    if (catchall.startswith("api/") or 
+        catchall.startswith("docs") or 
+        catchall.startswith("redoc") or 
+        catchall.startswith("static/") or
+        "." in catchall.split("/")[-1]):  # Skip files with extensions
         raise HTTPException(status_code=404, detail="Not found")
     
     # Check if static directory exists (production mode)
     if static_dir.exists():
         index_file = static_dir / "index.html"
         if index_file.exists():
+            print(f"✅ Serving React app for route: {catchall}")
             return FileResponse(index_file)
+        else:
+            print(f"❌ index.html not found in: {static_dir}")
+    else:
+        print(f"❌ Static directory not found: {static_dir}")
     
     # In development mode, API-only
-    raise HTTPException(status_code=404, detail="Not found")
+    raise HTTPException(status_code=404, detail="Static files not available")
 
 if __name__ == "__main__":
     import uvicorn
