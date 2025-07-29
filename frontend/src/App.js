@@ -17,7 +17,7 @@ const App = () => {
     // Set up real-time updates
     const interval = setInterval(fetchRecentAlerts, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
-  }, [backendUrl]);
+  }, []);
 
   const fetchData = async () => {
     try {
