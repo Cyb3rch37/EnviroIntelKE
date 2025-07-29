@@ -30,15 +30,7 @@ db = client.envirointel_ke
 # Serve React static files (for production deployment)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
-    # Check if React static subdirectory exists (CSS/JS files)
-    react_static_dir = static_dir / "static"
-    if react_static_dir.exists():
-        app.mount("/static", StaticFiles(directory=str(react_static_dir)), name="react-static")
-        print(f"✅ React static files mounted from: {react_static_dir}")
-    else:
-        # Fallback: mount the entire static directory
-        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-        print(f"✅ Static files mounted from: {static_dir}")
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
     
     # Mount additional assets at root level (favicon, manifest, etc.)
     for file in static_dir.glob("*"):
@@ -181,7 +173,7 @@ def generate_mock_insights():
 # API Routes
 @app.get("/")
 async def root():
-    return {"message": "EnviroIntel KE API - Environmental Cyber Intelligence Platform"}
+    return FileResponse(os.path.join(static_dir, 'index.html'))
 
 @app.get("/health")
 async def health_check():
@@ -283,27 +275,7 @@ async def serve_root_files(filename: str):
 # Serve React app for all non-API routes (for production deployment)
 @app.get("/{catchall:path}")
 async def serve_react_app(catchall: str):
-    # Don't serve React app for API routes, static assets, or specific files
-    if (catchall.startswith("api/") or 
-        catchall.startswith("docs") or 
-        catchall.startswith("redoc") or 
-        catchall.startswith("static/") or
-        "." in catchall.split("/")[-1]):  # Skip files with extensions
-        raise HTTPException(status_code=404, detail="Not found")
-    
-    # Check if static directory exists (production mode)
-    if static_dir.exists():
-        index_file = static_dir / "index.html"
-        if index_file.exists():
-            print(f"✅ Serving React app for route: {catchall}")
-            return FileResponse(index_file)
-        else:
-            print(f"❌ index.html not found in: {static_dir}")
-    else:
-        print(f"❌ Static directory not found: {static_dir}")
-    
-    # In development mode, API-only
-    raise HTTPException(status_code=404, detail="Static files not available")
+    return FileResponse(os.path.join(static_dir, 'index.html'))
 
 if __name__ == "__main__":
     import uvicorn
