@@ -28,9 +28,9 @@ client = MongoClient(mongo_url)
 db = client.envirointel_ke
 
 # Serve React static files (for production deployment)
-static_dir = Path(__file__).parent / "static"
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+# The CWD is 'backend', so the path is relative to it
+static_dir = Path("static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
