@@ -163,6 +163,10 @@ def generate_mock_insights():
     ]
     return insights
 
+# Generate mock data once at startup
+MOCK_THREATS = generate_mock_threats()
+MOCK_INSIGHTS = generate_mock_insights()
+
 # API Routes
 @app.get("/")
 async def root():
@@ -178,47 +182,42 @@ async def health_check():
 @app.get("/api/threats")
 async def get_threats():
     """Get all environmental threats"""
-    threats = generate_mock_threats()
-    return {"threats": [threat.dict() for threat in threats]}
+    return {"threats": [threat.dict() for threat in MOCK_THREATS]}
 
 @app.get("/api/threats/{threat_type}")
 async def get_threats_by_type(threat_type: str):
     """Get threats by type"""
-    threats = generate_mock_threats()
-    filtered_threats = [threat for threat in threats if threat.type == threat_type]
+    filtered_threats = [threat for threat in MOCK_THREATS if threat.type == threat_type]
     return {"threats": [threat.dict() for threat in filtered_threats]}
 
 @app.get("/api/insights")
 async def get_predictive_insights():
     """Get predictive insights"""
-    insights = generate_mock_insights()
-    return {"insights": [insight.dict() for insight in insights]}
+    return {"insights": [insight.dict() for insight in MOCK_INSIGHTS]}
 
 @app.get("/api/stats")
 async def get_dashboard_stats():
     """Get dashboard statistics"""
-    threats = generate_mock_threats()
-    
-    # Calculate statistics
-    total_threats = len(threats)
-    active_threats = len([t for t in threats if t.status == "active"])
-    critical_threats = len([t for t in threats if t.severity == "critical"])
+    # Calculate statistics from the single source of mock data
+    total_threats = len(MOCK_THREATS)
+    active_threats = len([t for t in MOCK_THREATS if t.status == "active"])
+    critical_threats = len([t for t in MOCK_THREATS if t.severity == "critical"])
     
     # Threat distribution
     threat_distribution = {}
-    for threat in threats:
+    for threat in MOCK_THREATS:
         threat_distribution[threat.type] = threat_distribution.get(threat.type, 0) + 1
     
     # Severity distribution
     severity_distribution = {}
-    for threat in threats:
+    for threat in MOCK_THREATS:
         severity_distribution[threat.severity] = severity_distribution.get(threat.severity, 0) + 1
     
     return {
         "total_threats": total_threats,
         "active_threats": active_threats,
         "critical_threats": critical_threats,
-        "resolved_threats": len([t for t in threats if t.status == "resolved"]),
+        "resolved_threats": len([t for t in MOCK_THREATS if t.status == "resolved"]),
         "threat_distribution": threat_distribution,
         "severity_distribution": severity_distribution,
         "last_updated": datetime.now().isoformat()
@@ -233,8 +232,7 @@ async def update_threat_status(threat_id: str, status: str):
 @app.get("/api/alerts/recent")
 async def get_recent_alerts():
     """Get recent alerts for real-time feed"""
-    threats = generate_mock_threats()
-    recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
+    recent_threats = sorted(MOCK_THREATS, key=lambda x: x.timestamp, reverse=True)[:10]
     return {"alerts": [threat.dict() for threat in recent_threats]}
 
 # Serve React app for all non-API routes (for production deployment)
