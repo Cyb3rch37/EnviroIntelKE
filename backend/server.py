@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pymongo import MongoClient
-from typing import List, Optional
+from typing import List
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -240,4 +240,4 @@ async def serve_react_app(path: str):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port)  # Explicit host binding
