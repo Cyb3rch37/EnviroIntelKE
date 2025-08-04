@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pymongo import MongoClient
 from typing import List, Optional
@@ -7,6 +9,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 import random
+from pathlib import Path
 
 app = FastAPI(title="EnviroIntel KE API")
 
@@ -23,6 +26,18 @@ app.add_middleware(
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017/')
 client = MongoClient(mongo_url)
 db = client.envirointel_ke
+
+# Serve React static files (for production deployment)
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    
+    # Mount additional assets at root level (favicon, manifest, etc.)
+    for file in static_dir.glob("*"):
+        if file.is_file():
+            print(f"📄 Found root asset: {file.name}")
+else:
+    print(f"⚠️ Static directory not found: {static_dir}")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
@@ -158,7 +173,11 @@ def generate_mock_insights():
 # API Routes
 @app.get("/")
 async def root():
-    return {"message": "EnviroIntel KE API - Environmental Cyber Intelligence Platform"}
+    return FileResponse(os.path.join(static_dir, 'index.html'))
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 @app.get("/api/threats")
 async def get_threats():
@@ -222,6 +241,43 @@ async def get_recent_alerts():
     recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
     return {"alerts": [threat.dict() for threat in recent_threats]}
 
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon"""
+    favicon_path = static_dir / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(favicon_path)
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/manifest.json")
+async def manifest():
+    """Serve manifest.json"""
+    manifest_path = static_dir / "manifest.json"
+    if manifest_path.exists():
+        return FileResponse(manifest_path)
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.get("/{filename}")
+async def serve_root_files(filename: str):
+    """Serve root-level files like fonts, images, etc."""
+    # Only serve specific file types to avoid conflicts
+    allowed_extensions = {'.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ttf', '.woff', '.woff2', '.json', '.xml', '.txt'}
+    file_extension = Path(filename).suffix.lower()
+    
+    if file_extension in allowed_extensions:
+        file_path = static_dir / filename
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+    
+    # If not a root file, continue to React app serving
+    raise HTTPException(status_code=404, detail="File not found")
+
+# Serve React app for all non-API routes (for production deployment)
+@app.get("/{catchall:path}")
+async def serve_react_app(catchall: str):
+    return FileResponse(os.path.join(static_dir, 'index.html'))
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)
