@@ -6,18 +6,15 @@
   "build": {
     "assetsDir": "static"
   },
-  "dependencies": {
-    // ... existing dependencies ...
-  },
+  
   "scripts": {
     "start": "craco start",
     "build": "PUBLIC_URL=. craco build",
     "test": "craco test",
     "eject": "react-scripts eject"
   },
-  // ... rest of your config ...
+
 }
-  },
   "browserslist": {
     "production": [
       ">0.2%",
