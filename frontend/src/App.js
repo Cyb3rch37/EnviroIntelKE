@@ -440,7 +440,7 @@ const App = () => {
               
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium text-gray-900 mb-2">API Base URL:</h4>
-                <code className="text-sm text-blue-600">{backendUrl}</code>
+                <code className="text-sm text-blue-600">https://envirointelke.onrender.com</code>
               </div>
             </div>
           </div>

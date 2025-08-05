@@ -15,7 +15,7 @@ services:
       echo "Creating static directory for backend..."
       mkdir -p ../backend/static
       echo "Copying React build to backend static directory..."
-      cp -r build/* ../backend/static/
+      cp -r build/* ../backend/static
       echo "Verifying static files copied..."
       ls -la ../backend/static/
       echo "Installing Python dependencies..."

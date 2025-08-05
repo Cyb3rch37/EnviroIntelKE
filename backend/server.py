@@ -4,14 +4,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pymongo import MongoClient
-from typing import List, Optional
+from typing import List
 import os
 import uuid
 from datetime import datetime, timedelta
 import random
 from pathlib import Path
 
-app = FastAPI(title="EnviroIntel KE API")
+app = FastAPI(
+    title="EnviroIntel KE API",
+    description="Environmental Cyber Intelligence Platform for Kenya",
+    version="1.0.0"
+)
 
 # CORS configuration
 app.add_middleware(
@@ -27,23 +31,31 @@ mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017/')
 client = MongoClient(mongo_url)
 db = client.envirointel_ke
 
-# Serve React static files (for production deployment)
+# Configure static files
 static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+print(f"🔍 Static directory: {static_dir}")
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    print("✅ Static files directory found")
+    print("📂 Directory contents:")
+    for f in static_dir.glob("*"):
+        print(f" - {f.name}{'/' if f.is_dir() else ''}")
+else:
+    print("⚠️ Static files directory not found!")
 
 # Pydantic models
 class ThreatAlert(BaseModel):
     id: str
-    type: str  # deforestation, pollution, illegal_dumping, climate_anomaly
+    type: str
     title: str
     description: str
-    location: dict  # {lat, lng, name}
-    severity: str  # low, medium, high, critical
+    location: dict
+    severity: str
     confidence: float
     timestamp: datetime
     source: str
-    status: str  # active, resolved, investigating
+    status: str
 
 class PredictiveInsight(BaseModel):
     id: str
@@ -58,7 +70,6 @@ class PredictiveInsight(BaseModel):
 
 # Mock data generation
 def generate_mock_threats():
-    """Generate mock environmental threats across Kenya"""
     kenya_locations = [
         {"lat": -1.2921, "lng": 36.8219, "name": "Nairobi"},
         {"lat": -4.0435, "lng": 39.6682, "name": "Mombasa"},
@@ -92,12 +103,12 @@ def generate_mock_threats():
     }
     
     threats = []
-    for i in range(25):
+    for _ in range(25):
         threat_type = random.choice(list(threat_types.keys()))
         location = random.choice(kenya_locations)
         threat_data = threat_types[threat_type]
         
-        threat = ThreatAlert(
+        threats.append(ThreatAlert(
             id=str(uuid.uuid4()),
             type=threat_type,
             title=random.choice(threat_data["titles"]),
@@ -108,14 +119,12 @@ def generate_mock_threats():
             timestamp=datetime.now() - timedelta(hours=random.randint(0, 48)),
             source=random.choice(["Satellite", "Social Media", "Citizen Report", "Sensor Network"]),
             status=random.choice(["active", "investigating", "resolved"])
-        )
-        threats.append(threat)
+        ))
     
     return threats
 
 def generate_mock_insights():
-    """Generate mock predictive insights"""
-    insights = [
+    return [
         PredictiveInsight(
             id=str(uuid.uuid4()),
             type="drought_prediction",
@@ -161,15 +170,11 @@ def generate_mock_insights():
             timestamp=datetime.now()
         )
     ]
-    return insights
 
 # API Routes
 @app.get("/")
 async def root():
-    index_file = static_dir / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return {"message": "EnviroIntel KE API - Environmental Cyber Intelligence Platform"}
+    return FileResponse(static_dir / 'index.html')
 
 @app.get("/health")
 async def health_check():
@@ -177,83 +182,62 @@ async def health_check():
 
 @app.get("/api/threats")
 async def get_threats():
-    """Get all environmental threats"""
-    threats = generate_mock_threats()
-    return {"threats": [threat.dict() for threat in threats]}
+    return {"threats": [threat.dict() for threat in generate_mock_threats()]}
 
 @app.get("/api/threats/{threat_type}")
 async def get_threats_by_type(threat_type: str):
-    """Get threats by type"""
-    threats = generate_mock_threats()
-    filtered_threats = [threat for threat in threats if threat.type == threat_type]
-    return {"threats": [threat.dict() for threat in filtered_threats]}
+    threats = [t for t in generate_mock_threats() if t.type == threat_type]
+    return {"threats": [t.dict() for t in threats]}
 
 @app.get("/api/insights")
 async def get_predictive_insights():
-    """Get predictive insights"""
-    insights = generate_mock_insights()
-    return {"insights": [insight.dict() for insight in insights]}
+    return {"insights": [insight.dict() for insight in generate_mock_insights()]}
 
 @app.get("/api/stats")
 async def get_dashboard_stats():
-    """Get dashboard statistics"""
     threats = generate_mock_threats()
-    
-    # Calculate statistics
-    total_threats = len(threats)
-    active_threats = len([t for t in threats if t.status == "active"])
-    critical_threats = len([t for t in threats if t.severity == "critical"])
-    
-    # Threat distribution
-    threat_distribution = {}
-    for threat in threats:
-        threat_distribution[threat.type] = threat_distribution.get(threat.type, 0) + 1
-    
-    # Severity distribution
-    severity_distribution = {}
-    for threat in threats:
-        severity_distribution[threat.severity] = severity_distribution.get(threat.severity, 0) + 1
-    
     return {
-        "total_threats": total_threats,
-        "active_threats": active_threats,
-        "critical_threats": critical_threats,
+        "total_threats": len(threats),
+        "active_threats": len([t for t in threats if t.status == "active"]),
+        "critical_threats": len([t for t in threats if t.severity == "critical"]),
         "resolved_threats": len([t for t in threats if t.status == "resolved"]),
-        "threat_distribution": threat_distribution,
-        "severity_distribution": severity_distribution,
+        "threat_distribution": {t: sum(1 for th in threats if th.type == t) for t in set(th.type for th in threats)},
+        "severity_distribution": {s: sum(1 for th in threats if th.severity == s) for s in set(th.severity for th in threats)},
         "last_updated": datetime.now().isoformat()
     }
 
 @app.post("/api/threats/{threat_id}/status")
 async def update_threat_status(threat_id: str, status: str):
-    """Update threat status"""
-    # In a real implementation, this would update the database
     return {"message": f"Threat {threat_id} status updated to {status}"}
 
 @app.get("/api/alerts/recent")
 async def get_recent_alerts():
-    """Get recent alerts for real-time feed"""
-    threats = generate_mock_threats()
-    recent_threats = sorted(threats, key=lambda x: x.timestamp, reverse=True)[:10]
-    return {"alerts": [threat.dict() for threat in recent_threats]}
+    threats = sorted(generate_mock_threats(), key=lambda x: x.timestamp, reverse=True)[:10]
+    return {"alerts": [t.dict() for t in threats]}
 
-# Serve React app for all non-API routes (for production deployment)
-@app.get("/{catchall:path}")
-async def serve_react_app(catchall: str):
-    # Don't serve React app for API routes
-    if catchall.startswith("api/") or catchall.startswith("docs") or catchall.startswith("redoc"):
-        raise HTTPException(status_code=404, detail="Not found")
+# Static file routes
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse(static_dir / "favicon.ico")
+
+@app.get("/manifest.json")
+async def manifest():
+    return FileResponse(static_dir / "manifest.json")
+
+# Serve React app for all other routes
+@app.get("/{path:path}")
+async def serve_react_app(path: str):
+    # Check if it's a static file request
+    if path.startswith("static/"):
+        file_path = static_dir / path
+        if file_path.exists():
+            return FileResponse(file_path)
+        raise HTTPException(status_code=404)
     
-    # Check if static directory exists (production mode)
-    if static_dir.exists():
-        index_file = static_dir / "index.html"
-        if index_file.exists():
-            return FileResponse(index_file)
-    
-    # In development mode, API-only
-    raise HTTPException(status_code=404, detail="Not found")
+    # Serve index.html for all other routes
+    return FileResponse(static_dir / 'index.html')
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8001))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)  # Explicit host binding
